@@ -14,6 +14,8 @@ import { ProductService } from './product/product.service';
 import { ProductModule } from './product/product.module';
 import { OrderService } from './order/order.service';
 import { OrderModule } from './order/order.module';
+import { FinanceModule } from './finance/finance.module';
+import { CarPartsModule } from './car-parts/car-parts.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { OrderModule } from './order/order.module';
     CustomerModule,
     ProductModule,
     OrderModule,
+    FinanceModule,
+    CarPartsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -13,6 +13,16 @@ export const getProducts = async () => {
   return res.data;
 };
 
+export const getFinanceProducts = async () => {
+  const res = await axios.get(`${API_URL}/finance-products`);
+  return res.data;
+};
+
+export const getCarParts = async () => {
+  const res = await axios.get(`${API_URL}/car-parts`);
+  return res.data;
+};
+
 export const getCustomers = async () => {
   const res = await axios.get(`${API_URL}/customers`);
   return res.data;

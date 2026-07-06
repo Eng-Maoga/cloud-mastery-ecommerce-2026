@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { getCustomers, getOrders } from "../../api";
+import { API_URL, getCustomers, getOrders } from "../../api";
 import { CustomersType } from "../../types/CustomersType";
 import { OrderType } from "../../types/OrderType";
 import { formatRelativeDate } from "../../util";
@@ -13,27 +13,42 @@ export default function ShopOrdersPage() {
   const [customers, setCustomers] = useState<CustomersType[]>([]);
   const [orders, setOrders] = useState<OrderType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
+    const extractList = <T,>(payload: unknown): T[] => {
+      if (Array.isArray(payload)) {
+        return payload as T[];
+      }
+
+      if (payload && typeof payload === "object") {
+        const first = (payload as { data?: unknown }).data;
+        if (Array.isArray(first)) {
+          return first as T[];
+        }
+
+        if (first && typeof first === "object") {
+          const second = (first as { data?: unknown }).data;
+          if (Array.isArray(second)) {
+            return second as T[];
+          }
+        }
+      }
+
+      return [];
+    };
+
     const loadData = async () => {
       setLoading(true);
+      setLoadError(null);
       try {
         const [customersResponse, ordersResponse] = await Promise.all([
           getCustomers(),
           getOrders(),
         ]);
 
-        const customerList = Array.isArray(customersResponse?.data)
-          ? customersResponse.data
-          : Array.isArray(customersResponse)
-          ? customersResponse
-          : [];
-
-        const orderList = Array.isArray(ordersResponse?.data)
-          ? ordersResponse.data
-          : Array.isArray(ordersResponse)
-          ? ordersResponse
-          : [];
+        const customerList = extractList<CustomersType>(customersResponse);
+        const orderList = extractList<OrderType>(ordersResponse);
 
         setCustomers(customerList);
         setOrders(orderList);
@@ -42,7 +57,9 @@ export default function ShopOrdersPage() {
           setSelectedCustomerId(customerList[0].id);
         }
       } catch {
+        const errorText = `Unable to fetch customers and orders from ${API_URL}/customers and ${API_URL}/orders`;
         toast.error("Unable to load customer orders.");
+        setLoadError(errorText);
       } finally {
         setLoading(false);
       }
@@ -91,6 +108,10 @@ export default function ShopOrdersPage() {
       {loading ? (
         <p className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-600">
           Loading ordered items...
+        </p>
+      ) : loadError ? (
+        <p className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700">
+          {loadError}
         </p>
       ) : orderedItems.length === 0 ? (
         <p className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-600">

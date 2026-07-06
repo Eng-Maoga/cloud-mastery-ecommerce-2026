@@ -1,9 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { API_URL, getCarParts } from "../../api";
 import { useShop } from "../ShopProvider";
+
+const ITEMS_PER_PAGE = 15;
 
 type CarPart = {
   id: string;
@@ -27,38 +30,6 @@ type CarPart = {
   updated_at: string;
   order_id: string | null;
 };
-
-const withDummyImageUrl = (part: CarPart): CarPart => {
-  const lock = Array.from(part.sku).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return {
-    ...part,
-    imageUrl: `https://loremflickr.com/600/400/car-battery?lock=${lock}`,
-  };
-};
-
-const carParts: CarPart[] = [
-  { updated_at: "2026-06-30 08:34:45.689000 UTC", warrantyMonths: "24", branchLocation: "Karen", priceKes: "36000.0", cca: "760", engineCc: "4500", brand: "GS Yuasa", yearTo: "2024", id: "7727773c-8d8a-4c17-bf10-9939cfff0ec2", yearFrom: "2010", batteryType: "N100", model: "Land Cruiser V8", capacityAh: "100", make: "Toyota", created_at: "2026-06-30 08:34:45.689000 UTC", stock: "2", voltage: "12", sku: "PRT-011", order_id: null },
-  { updated_at: "2026-06-30 08:34:43.353000 UTC", warrantyMonths: "18", branchLocation: "Karen", priceKes: "23500.0", cca: "590", engineCc: "2700", brand: "ExideGold", yearTo: "2017", id: "0aacc4f4-c159-4bf8-8a07-009e8377b9f9", yearFrom: "2010", batteryType: "N70", model: "Prado 150", capacityAh: "70", make: "Toyota", created_at: "2026-06-30 08:34:43.353000 UTC", stock: "4", voltage: "12", sku: "PRT-009", order_id: null },
-  { updated_at: "2026-06-30 08:35:13.075000 UTC", warrantyMonths: "24", branchLocation: "Karen", priceKes: "24000.0", cca: "590", engineCc: "3200", brand: "Bosch", yearTo: "2014", id: "278c4f82-222d-4688-b08b-14a6b631ce2b", yearFrom: "2005", batteryType: "N70", model: "Pajero", capacityAh: "70", make: "Mitsubishi", created_at: "2026-06-30 08:35:13.075000 UTC", stock: "3", voltage: "12", sku: "PRT-039", order_id: null },
-  { updated_at: "2026-06-30 08:35:04.411000 UTC", warrantyMonths: "24", branchLocation: "Westlands", priceKes: "25500.0", cca: "590", engineCc: "2500", brand: "Bosch", yearTo: "2024", id: "4d23e820-2d64-440a-8e1e-a25de5557cda", yearFrom: "2015", batteryType: "N70", model: "Navara", capacityAh: "70", make: "Nissan", created_at: "2026-06-30 08:35:04.411000 UTC", stock: "3", voltage: "12", sku: "PRT-030", order_id: null },
-  { updated_at: "2026-06-30 08:34:44.460000 UTC", warrantyMonths: "24", branchLocation: "Westlands", priceKes: "26000.0", cca: "590", engineCc: "2700", brand: "Bosch", yearTo: "2024", id: "5bc6e564-8413-4e70-81f6-9034d1193b69", yearFrom: "2018", batteryType: "N70", model: "Prado 150", capacityAh: "70", make: "Toyota", created_at: "2026-06-30 08:34:44.460000 UTC", stock: "3", voltage: "12", sku: "PRT-010", order_id: null },
-  { updated_at: "2026-06-30 08:34:46.812000 UTC", warrantyMonths: "24", branchLocation: "CBD", priceKes: "27500.0", cca: "590", engineCc: "2800", brand: "Varta", yearTo: "2024", id: "93ef272f-bba3-4c4a-ba36-9057d27297fe", yearFrom: "2015", batteryType: "N70", model: "Hilux Revo", capacityAh: "70", make: "Toyota", created_at: "2026-06-30 08:34:46.812000 UTC", stock: "3", voltage: "12", sku: "PRT-012", order_id: null },
-  { updated_at: "2026-06-30 08:34:34.445000 UTC", warrantyMonths: "18", branchLocation: "Westlands", priceKes: "8500.0", cca: "340", engineCc: "1000", brand: "ExideGold", yearTo: "2014", id: "4e2f7ece-e63b-4e94-8a0c-bdf296bc9890", yearFrom: "2010", batteryType: "NS40ZL", model: "Vitz", capacityAh: "36", make: "Toyota", created_at: "2026-06-30 08:34:34.445000 UTC", stock: "12", voltage: "12", sku: "PRT-001", order_id: null },
-  { updated_at: "2026-06-30 08:34:57.968000 UTC", warrantyMonths: "18", branchLocation: "CBD", priceKes: "8500.0", cca: "340", engineCc: "1200", brand: "ExideGold", yearTo: "2016", id: "a1795497-1850-45ac-bf77-d3d3a2f765fa", yearFrom: "2012", batteryType: "NS40ZL", model: "Note", capacityAh: "36", make: "Nissan", created_at: "2026-06-30 08:34:57.968000 UTC", stock: "11", voltage: "12", sku: "PRT-023", order_id: null },
-  { updated_at: "2026-06-30 08:35:20.714000 UTC", warrantyMonths: "18", branchLocation: "CBD", priceKes: "8500.0", cca: "340", engineCc: "1200", brand: "Chloride", yearTo: "2017", id: "d78a22c3-0252-431a-b81c-a561573e25fd", yearFrom: "2010", batteryType: "NS40ZL", model: "Swift", capacityAh: "36", make: "Suzuki", created_at: "2026-06-30 08:35:20.714000 UTC", stock: "10", voltage: "12", sku: "PRT-047", order_id: null },
-  { updated_at: "2026-06-30 08:34:49.985000 UTC", warrantyMonths: "18", branchLocation: "CBD", priceKes: "8800.0", cca: "340", engineCc: "1300", brand: "Chloride", yearTo: "2014", id: "1f2248ef-eb86-41a6-ab74-68d8345da6da", yearFrom: "2008", batteryType: "NS40ZL", model: "Demio", capacityAh: "36", make: "Mazda", created_at: "2026-06-30 08:34:49.985000 UTC", stock: "9", voltage: "12", sku: "PRT-015", order_id: null },
-  { updated_at: "2026-06-30 08:34:58.885000 UTC", warrantyMonths: "18", branchLocation: "Kilimani", priceKes: "8800.0", cca: "340", engineCc: "1200", brand: "Chloride", yearTo: "2024", id: "14f7f900-fcf8-43eb-a8a8-a7c9b274ab71", yearFrom: "2017", batteryType: "NS40ZL", model: "Note", capacityAh: "36", make: "Nissan", created_at: "2026-06-30 08:34:58.885000 UTC", stock: "9", voltage: "12", sku: "PRT-024", order_id: null },
-  { updated_at: "2026-06-30 08:34:51.114000 UTC", warrantyMonths: "18", branchLocation: "Kilimani", priceKes: "9200.0", cca: "340", engineCc: "1300", brand: "Amaron", yearTo: "2019", id: "2cbeaf0a-de72-4c43-bc6c-ec7ee7245b56", yearFrom: "2015", batteryType: "NS40ZL", model: "Demio", capacityAh: "36", make: "Mazda", created_at: "2026-06-30 08:34:51.114000 UTC", stock: "7", voltage: "12", sku: "PRT-016", order_id: null },
-  { updated_at: "2026-06-30 08:34:36.067000 UTC", warrantyMonths: "18", branchLocation: "Karen", priceKes: "9200.0", cca: "340", engineCc: "1000", brand: "Amaron", yearTo: "2019", id: "ee5d1a01-3607-46f3-8e87-55be19e646d2", yearFrom: "2015", batteryType: "NS40ZL", model: "Vitz", capacityAh: "36", make: "Toyota", created_at: "2026-06-30 08:34:36.067000 UTC", stock: "8", voltage: "12", sku: "PRT-002", order_id: null },
-  { updated_at: "2026-06-30 08:35:21.776000 UTC", warrantyMonths: "18", branchLocation: "Langata", priceKes: "9200.0", cca: "340", engineCc: "1200", brand: "Amaron", yearTo: "2024", id: "707d2e1a-caf2-4eb9-a24f-96cab12fce66", yearFrom: "2018", batteryType: "NS40ZL", model: "Swift", capacityAh: "36", make: "Suzuki", created_at: "2026-06-30 08:35:21.776000 UTC", stock: "7", voltage: "12", sku: "PRT-048", order_id: null },
-  { updated_at: "2026-06-30 08:34:52.240000 UTC", warrantyMonths: "24", branchLocation: "Karen", priceKes: "9800.0", cca: "340", engineCc: "1500", brand: "Bosch", yearTo: "2024", id: "1e96c91e-7769-425b-95c8-238534632679", yearFrom: "2020", batteryType: "NS40ZL", model: "Demio", capacityAh: "36", make: "Mazda", created_at: "2026-06-30 08:34:52.240000 UTC", stock: "5", voltage: "12", sku: "PRT-017", order_id: null },
-  { updated_at: "2026-06-30 08:34:37.051000 UTC", warrantyMonths: "24", branchLocation: "CBD", priceKes: "9800.0", cca: "340", engineCc: "1000", brand: "Bosch", yearTo: "2024", id: "8ac72f91-2c9c-46da-9cb3-a105b9b6031e", yearFrom: "2020", batteryType: "NS40ZL", model: "Vitz", capacityAh: "36", make: "Toyota", created_at: "2026-06-30 08:34:37.051000 UTC", stock: "6", voltage: "12", sku: "PRT-003", order_id: null },
-  { updated_at: "2026-06-30 08:34:53.147000 UTC", warrantyMonths: "18", branchLocation: "Westlands", priceKes: "11000.0", cca: "430", engineCc: "1600", brand: "ExideGold", yearTo: "2016", id: "3a63330e-f74d-43ad-9730-c7477ea3124c", yearFrom: "2010", batteryType: "NS60", model: "Axela", capacityAh: "45", make: "Mazda", created_at: "2026-06-30 08:34:53.147000 UTC", stock: "8", voltage: "12", sku: "PRT-018", order_id: null },
-  { updated_at: "2026-06-30 08:34:38.558000 UTC", warrantyMonths: "18", branchLocation: "Langata", priceKes: "11000.0", cca: "430", engineCc: "1500", brand: "ExideGold", yearTo: "2012", id: "adfc9a7a-6e17-451b-a999-96501968c9db", yearFrom: "2004", batteryType: "NS60", model: "Fielder", capacityAh: "45", make: "Toyota", created_at: "2026-06-30 08:34:38.558000 UTC", stock: "10", voltage: "12", sku: "PRT-004", order_id: null },
-  { updated_at: "2026-06-30 08:35:19.561000 UTC", warrantyMonths: "24", branchLocation: "Westlands", priceKes: "18000.0", cca: "490", engineCc: "2400", brand: "Varta", yearTo: "2018", id: "7e0aa394-dc07-45a4-96a8-0cbacc80e89b", yearFrom: "2010", batteryType: "S85D26R", model: "Accord", capacityAh: "55", make: "Honda", created_at: "2026-06-30 08:35:19.561000 UTC", stock: "4", voltage: "12", sku: "PRT-046", order_id: null },
-  { updated_at: "2026-06-30 08:35:07.171000 UTC", warrantyMonths: "24", branchLocation: "Westlands", priceKes: "23500.0", cca: "550", engineCc: "2500", brand: "Varta", yearTo: "2024", id: "076447eb-52b6-4dcc-8e48-4e461ac5acbc", yearFrom: "2018", batteryType: "S95D26L", model: "Forester SK", capacityAh: "65", make: "Subaru", created_at: "2026-06-30 08:35:07.171000 UTC", stock: "3", voltage: "12", sku: "PRT-033", order_id: null },
-  { updated_at: "2026-06-30 08:35:01.648000 UTC", warrantyMonths: "24", branchLocation: "CBD", priceKes: "23000.0", cca: "550", engineCc: "2500", brand: "Varta", yearTo: "2024", id: "8a1ba5b4-0e3d-4d72-a1c4-ee38c340bfd3", yearFrom: "2020", batteryType: "S95D26R", model: "X-Trail T32", capacityAh: "65", make: "Nissan", created_at: "2026-06-30 08:35:01.648000 UTC", stock: "3", voltage: "12", sku: "PRT-027", order_id: null }
-].map(withDummyImageUrl);
 
 const formatKes = (value: string) =>
   `KES ${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -95,8 +66,53 @@ const getFakeRating = (part: CarPart) => {
 
 export default function CarPartsPage() {
   const { addToCart } = useShop();
+  const [carParts, setCarParts] = useState<CarPart[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeMake, setActiveMake] = useState<string>("All");
   const [activeBranch, setActiveBranch] = useState<string>("All");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    const extractList = (payload: unknown): CarPart[] => {
+      if (Array.isArray(payload)) {
+        return payload as CarPart[];
+      }
+
+      if (payload && typeof payload === "object") {
+        const first = (payload as { data?: unknown }).data;
+        if (Array.isArray(first)) {
+          return first as CarPart[];
+        }
+
+        if (first && typeof first === "object") {
+          const second = (first as { data?: unknown }).data;
+          if (Array.isArray(second)) {
+            return second as CarPart[];
+          }
+        }
+      }
+
+      return [];
+    };
+
+    const loadParts = async () => {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const response = await getCarParts();
+        setCarParts(extractList(response));
+      } catch {
+        setCarParts([]);
+        setLoadError(`Failed to fetch from ${API_URL}/car-parts`);
+        toast.error("Unable to load car parts right now.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadParts();
+  }, []);
 
   const toShopProduct = (part: CarPart) => ({
     id: part.id,
@@ -109,12 +125,12 @@ export default function CarPartsPage() {
   const makes = useMemo(() => {
     const unique = Array.from(new Set(carParts.map((item) => item.make)));
     return ["All", ...unique];
-  }, []);
+  }, [carParts]);
 
   const branches = useMemo(() => {
     const unique = Array.from(new Set(carParts.map((item) => item.branchLocation)));
     return ["All", ...unique];
-  }, []);
+  }, [carParts]);
 
   const visibleParts = useMemo(() => {
     return carParts.filter((item) => {
@@ -122,7 +138,27 @@ export default function CarPartsPage() {
       const matchesBranch = activeBranch === "All" || item.branchLocation === activeBranch;
       return matchesMake && matchesBranch;
     });
-  }, [activeBranch, activeMake]);
+  }, [activeBranch, activeMake, carParts]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(visibleParts.length / ITEMS_PER_PAGE)),
+    [visibleParts.length]
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeMake, activeBranch, carParts]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedParts = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return visibleParts.slice(start, start + ITEMS_PER_PAGE);
+  }, [currentPage, visibleParts]);
 
   return (
     <section className="space-y-7 pb-8">
@@ -134,8 +170,8 @@ export default function CarPartsPage() {
           Car Parts
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-700 md:text-base">
-          Explore battery options by make, branch, and vehicle fitment using starter
-          dummy data.
+          Explore battery options by make, branch, and vehicle fitment powered by
+          live catalog data.
         </p>
       </div>
 
@@ -171,8 +207,20 @@ export default function CarPartsPage() {
         </label>
       </div>
 
+      {loading ? (
+        <p className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-600">
+          Loading car parts...
+        </p>
+      ) : null}
+
+      {!loading && loadError ? (
+        <p className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700">
+          {loadError}
+        </p>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-2">
-        {visibleParts.map((part) => {
+        {paginatedParts.map((part) => {
           const availableStock = Number(part.stock);
           const isOutOfStock = availableStock <= 0;
 
@@ -256,7 +304,37 @@ export default function CarPartsPage() {
         })}
       </div>
 
-      {visibleParts.length === 0 ? (
+      {!loading && visibleParts.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+          <p>
+            Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}-
+            {Math.min(currentPage * ITEMS_PER_PAGE, visibleParts.length)} of {visibleParts.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="font-semibold">
+              Page {currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {!loading && visibleParts.length === 0 ? (
         <p className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-600">
           No parts found for this filter combination.
         </p>

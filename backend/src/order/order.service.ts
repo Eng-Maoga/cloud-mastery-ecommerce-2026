@@ -1,15 +1,39 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { PrismaService } from '../prisma.service';
 import { Prisma } from '@prisma/client';
+import { BigQuery } from '@google-cloud/bigquery';
 
 @Injectable()
 export class OrderService {
+  private readonly logger = new Logger(OrderService.name);
+  private readonly bigQuery = new BigQuery();
+  private readonly ordersTable =
+    process.env.BIGQUERY_ORDERS_TABLE ||
+    'pawait-data-hub.cloud_mastery.orders';
+  private readonly orderDetailsTable =
+    process.env.BIGQUERY_ORDER_DETAILS_TABLE ||
+    'pawait-data-hub.cloud_mastery.order_details';
+  private readonly customersTable =
+    process.env.BIGQUERY_CUSTOMERS_TABLE ||
+    'pawait-data-hub.cloud_mastery.customers';
+
   constructor(private prisma: PrismaService) {}
+
+  private toIso(value: unknown): string | null {
+    if (value && typeof value === 'object' && 'value' in value) {
+      return String((value as { value: unknown }).value);
+    }
+    if (value == null) {
+      return null;
+    }
+    return String(value);
+  }
 
   async create(createOrderDto: CreateOrderDto) {
     const { items, ...orderData } = createOrderDto;
@@ -84,49 +108,104 @@ export class OrderService {
   }
 
   async findAll() {
-    const orders = await this.prisma.order.findMany({
-      include: {
-        customer: {
-          select: {
-            firstName: true,
-            lastName: true,
-          }
-        },
-        items: {
-          include: {
-            product: {
-              select: {
-                name: true,
-              }
-            }
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    try {
+      const [ordersRows] = await this.bigQuery.query({
+        query: `
+          SELECT
+            id,
+            customer_id AS customerId,
+            orderNumber,
+            orderAmount,
+            orderDate,
+            description,
+            paymentMethod,
+            shippingAddress,
+            status,
+            created_at AS createdAt,
+            updated_at AS updatedAt
+          FROM \`${this.ordersTable}\`
+          ORDER BY created_at DESC
+        `,
+        location: process.env.BIGQUERY_LOCATION || 'US',
+      });
 
-    return orders.map(order => ({
-      id: order.id,
-      customerId: order.customerId,
-      customerName: `${order.customer.firstName} ${order.customer.lastName}`,
-      orderNumber: order.orderNumber,
-      orderAmount: order.orderAmount,
-      orderDate: order.orderDate,
-      description: order.description,
-      paymentMethod: order.paymentMethod,
-      shippingAddress: order.shippingAddress,
-      status: order.status,
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt,
-      items: order.items.map(item => ({
-        id: item.id,
-        productId: item.productId,
-        productName: item.product.name,
-        unitCost: item.unitCost,
-        quantity: item.quantity,
-        totalCost: item.totalCost
-      }))
-    }));
+      const [itemsRows] = await this.bigQuery.query({
+        query: `
+          SELECT
+            id,
+            order_id AS orderId,
+            product_id AS productId,
+            product_name AS productName,
+            unitCost,
+            quantity,
+            totalCost
+          FROM \`${this.orderDetailsTable}\`
+        `,
+        location: process.env.BIGQUERY_LOCATION || 'US',
+      });
+
+      const [customersRows] = await this.bigQuery.query({
+        query: `
+          SELECT
+            id,
+            firstName,
+            lastName
+          FROM \`${this.customersTable}\`
+        `,
+        location: process.env.BIGQUERY_LOCATION || 'US',
+      });
+
+      const customerNameById = new Map<string, string>();
+      for (const row of customersRows as Array<Record<string, unknown>>) {
+        const customerId = row.id ? String(row.id) : '';
+        const firstName = row.firstName ? String(row.firstName) : '';
+        const lastName = row.lastName ? String(row.lastName) : '';
+        customerNameById.set(customerId, `${firstName} ${lastName}`.trim());
+      }
+
+      const itemsByOrderId = new Map<string, Array<Record<string, unknown>>>();
+      for (const item of itemsRows as Array<Record<string, unknown>>) {
+        const orderId = item.orderId ? String(item.orderId) : '';
+        if (!itemsByOrderId.has(orderId)) {
+          itemsByOrderId.set(orderId, []);
+        }
+        itemsByOrderId.get(orderId)!.push(item);
+      }
+
+      return (ordersRows as Array<Record<string, unknown>>).map((order) => {
+        const orderId = order.id ? String(order.id) : '';
+        const customerId = order.customerId ? String(order.customerId) : '';
+        const orderItems = itemsByOrderId.get(orderId) || [];
+
+        return {
+          id: orderId,
+          customerId,
+          customerName: customerNameById.get(customerId) || 'Unknown Customer',
+          orderNumber: order.orderNumber ? String(order.orderNumber) : null,
+          orderAmount: order.orderAmount != null ? String(order.orderAmount) : '0',
+          orderDate: this.toIso(order.orderDate),
+          description: order.description ? String(order.description) : null,
+          paymentMethod: order.paymentMethod ? String(order.paymentMethod) : 'UNKNOWN',
+          shippingAddress: order.shippingAddress ? String(order.shippingAddress) : '',
+          status: order.status ? String(order.status) : 'pending',
+          createdAt: this.toIso(order.createdAt),
+          updatedAt: this.toIso(order.updatedAt),
+          items: orderItems.map((item) => ({
+            id: item.id ? String(item.id) : '',
+            productId: item.productId ? String(item.productId) : '',
+            productName: item.productName ? String(item.productName) : 'Unnamed Product',
+            unitCost: item.unitCost != null ? String(item.unitCost) : '0',
+            quantity: item.quantity != null ? Number(item.quantity) : 0,
+            totalCost: item.totalCost != null ? String(item.totalCost) : '0',
+          })),
+        };
+      });
+    } catch (error) {
+      this.logger.error(
+        `BigQuery orders read failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      return [];
+    }
   }
 
   async findOne(id: string) {

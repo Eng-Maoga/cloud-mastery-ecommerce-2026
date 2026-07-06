@@ -7,6 +7,8 @@ import { getProducts } from "../../api";
 import { useShop } from "../ShopProvider";
 import { ProductType } from "../../types/ProductType";
 
+const ITEMS_PER_PAGE = 15;
+
 const normalizeImageUrl = (url: string) => {
   try {
     const parsed = new URL(url);
@@ -31,6 +33,7 @@ export default function ShopProductsPage() {
   const [products, setProducts] = useState<ProductType[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -84,6 +87,26 @@ export default function ShopProductsPage() {
     }
     return products.filter((product) => product.category === activeCategory);
   }, [activeCategory, products]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE)),
+    [filteredProducts.length]
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory, products]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredProducts.slice(start, start + ITEMS_PER_PAGE);
+  }, [currentPage, filteredProducts]);
 
   const getProductImage = (product: ProductType) =>
     (() => {
@@ -140,7 +163,7 @@ export default function ShopProductsPage() {
         </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredProducts.map((product) => {
+          {paginatedProducts.map((product) => {
             const isOutOfStock = product.quantity <= 0;
             return (
               <article
@@ -189,6 +212,36 @@ export default function ShopProductsPage() {
           })}
         </div>
       )}
+
+      {!loading && filteredProducts.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+          <p>
+            Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}-
+            {Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)} of {filteredProducts.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="font-semibold">
+              Page {currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {!loading && filteredProducts.length === 0 ? (
         <p className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-600">

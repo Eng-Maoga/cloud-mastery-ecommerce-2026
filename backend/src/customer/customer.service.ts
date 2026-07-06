@@ -1,14 +1,22 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { PrismaService } from '../prisma.service';
+import { BigQuery } from '@google-cloud/bigquery';
 
 @Injectable()
 export class CustomerService {
+  private readonly logger = new Logger(CustomerService.name);
+  private readonly bigQuery = new BigQuery();
+  private readonly customersTable =
+    process.env.BIGQUERY_CUSTOMERS_TABLE ||
+    'pawait-data-hub.cloud_mastery.customers';
+
   constructor(private prisma: PrismaService) {}
 
   private getCustomerDateWindow() {
@@ -36,13 +44,48 @@ export class CustomerService {
   }
 
   async findAll() {
-    const customers = this.prisma.customer.findMany({
-      where: {
-        createdAt: this.getCustomerDateWindow(),
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    return customers;
+    try {
+      const [rows] = await this.bigQuery.query({
+        query: `
+          SELECT
+            id,
+            firstName,
+            lastName,
+            email,
+            CAST(phone AS STRING) AS phone,
+            address,
+            city,
+            created_at AS createdAt,
+            updated_at AS updatedAt
+          FROM \`${this.customersTable}\`
+          ORDER BY created_at DESC
+        `,
+        location: process.env.BIGQUERY_LOCATION || 'US',
+      });
+
+      return (rows as Array<Record<string, unknown>>).map((row) => ({
+        id: row.id ? String(row.id) : '',
+        firstName: row.firstName ? String(row.firstName) : '',
+        lastName: row.lastName ? String(row.lastName) : '',
+        email: row.email ? String(row.email) : '',
+        phone: row.phone ? String(row.phone) : '',
+        address: row.address ? String(row.address) : '',
+        city: row.city ? String(row.city) : '',
+        createdAt:
+          row.createdAt && typeof row.createdAt === 'object' && 'value' in row.createdAt
+            ? String((row.createdAt as { value: unknown }).value)
+            : (row.createdAt ? String(row.createdAt) : null),
+        updatedAt:
+          row.updatedAt && typeof row.updatedAt === 'object' && 'value' in row.updatedAt
+            ? String((row.updatedAt as { value: unknown }).value)
+            : (row.updatedAt ? String(row.updatedAt) : null),
+      }));
+    } catch (error) {
+      this.logger.error(
+        `BigQuery customer read failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      return [];
+    }
   }
 
   findOne(id: string) {
