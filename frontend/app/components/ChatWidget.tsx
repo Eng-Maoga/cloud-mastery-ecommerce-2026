@@ -59,7 +59,8 @@ export default function ChatWidget() {
               if (storedStr) {
                 const stored = JSON.parse(storedStr);
                 if (stored.name) {
-                  createSession({
+
+                  await createSession({
                     sessionId: agentSessionId,
                     name: stored.name,
                     phone: stored.phone,
@@ -122,14 +123,7 @@ export default function ChatWidget() {
           chatSdk.prebuilts.ces.createContext({
             deploymentName,
             tokenBroker: {
-              enableTokenBroker: false, 
-              enableRecaptcha: false,
-            },
-            parameters: {
-              sessionId: session.sessionId,
-              customerName: session.name,
-              customerPhone: session.phone,
-              customerLocation: session.location,
+              enableTokenBroker: true,
             },
             enableWelcomeEvent: true,
           })

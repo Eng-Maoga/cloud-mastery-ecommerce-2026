@@ -10,6 +10,7 @@ import { useShop } from "../ShopProvider";
 export default function ShopCartPage() {
   const {
     cartItems,
+    session,
     selectedCustomerId,
     setSelectedCustomerId,
     updateCartQuantity,
@@ -48,47 +49,33 @@ export default function ShopCartPage() {
     [customers, selectedCustomerId]
   );
 
-  const onFakeCheckout = async () => {
+  const onCheckout = async () => {
     if (cartItems.length === 0) {
       toast.error("Your cart is empty.");
       return;
     }
 
-    if (!selectedCustomerId) {
-      toast.error("Select a customer before checkout.");
-      return;
-    }
-
-    const checkoutCustomer = customers.find((customer) => customer.id === selectedCustomerId);
-
-    if (!checkoutCustomer) {
-      toast.error("Selected customer could not be found.");
+    if (!session?.sessionId) {
+      toast.error("Agent session is not initialized. Please refresh.");
       return;
     }
 
     setIsCheckingOut(true);
 
     try {
-      await addOrder({
-        customerId: selectedCustomerId,
-        orderAmount: cartTotal.toFixed(2),
-        orderDate: new Date().toISOString(),
-        description: `Shop checkout for ${checkoutCustomer.firstName} ${checkoutCustomer.lastName}`,
-        paymentMethod: "fake_checkout",
-        shippingAddress: checkoutCustomer.address || checkoutCustomer.city,
-        status: "pending",
-        items: cartItems.map((item) => ({
-          productId: item.id,
-          quantity: item.cartQuantity,
-          unitCost: Number(item.unitCost),
-        })),
-      });
+      // Call the Express service to initiate Pesapal payment
+      const { checkoutCartApi } = await import("../../api");
+      const checkoutResponse = await checkoutCartApi(session.sessionId);
 
-      clearCart();
-      toast.success("Checkout saved. Order items were recorded for the selected user.");
-    } catch {
-      toast.error("Checkout failed. Could not save order items.");
-    } finally {
+      if (checkoutResponse.redirectUrl) {
+        // Redirect browser to the Pesapal iframe/hosted page
+        window.location.href = checkoutResponse.redirectUrl;
+      } else {
+        toast.error("No redirect URL returned from payment service.");
+        setIsCheckingOut(false);
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Checkout failed. Could not connect to payment service.");
       setIsCheckingOut(false);
     }
   };
@@ -191,10 +178,10 @@ export default function ShopCartPage() {
             <button
               type="button"
               disabled={isCheckingOut}
-              onClick={onFakeCheckout}
+              onClick={onCheckout}
               className="mt-4 w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-emerald-300"
             >
-              {isCheckingOut ? "Processing..." : "Fake Checkout"}
+              {isCheckingOut ? "Processing..." : "Checkout via Pesapal"}
             </button>
           </aside>
         </div>

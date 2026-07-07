@@ -2,8 +2,8 @@ import axios from "axios";
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081/api/v1";
 export const API_URL = rawApiUrl.replace(/\/+$/, "");
 
-// Python FastAPI cart service (Cloud Run)
-const rawCartUrl = process.env.NEXT_PUBLIC_CART_API_URL || "http://localhost:8000";
+// Combined Express Node service (Cart & Checkout)
+const rawCartUrl = process.env.NEXT_PUBLIC_CART_API_URL || "https://checkout-service-659303448426.us-central1.run.app";
 export const CART_API_URL = rawCartUrl.replace(/\/+$/, "");
 
 import { CustomersType } from "./types/CustomersType";
@@ -79,7 +79,8 @@ export const addToCartApi = async (payload: {
   unitCost: number;
   quantity: number;
 }) => {
-  const res = await axios.post(`${CART_API_URL}/addToCart`, payload);
+  const { sessionId, ...body } = payload;
+  const res = await axios.post(`${CART_API_URL}/addToCart?sessionId=${sessionId}`, body);
   return res.data;
 };
 
@@ -88,11 +89,24 @@ export const modifyCartApi = async (payload: {
   productId: string;
   quantity: number;
 }) => {
-  const res = await axios.post(`${CART_API_URL}/modifyCart`, payload);
+  const { sessionId, ...body } = payload;
+  const res = await axios.post(`${CART_API_URL}/modifyCart?sessionId=${sessionId}`, body);
   return res.data;
 };
 
 export const removeCartItemApi = async (sessionId: string, productId: string) => {
-  const res = await axios.delete(`${CART_API_URL}/cart/${sessionId}/item/${productId}`);
+  const res = await axios.post(`${CART_API_URL}/modifyCart?sessionId=${sessionId}`, {
+    productId,
+    quantity: 0
+  });
+  return res.data;
+};
+
+// ─── Express Checkout API ───────────────────────────────────────────────────
+const rawExpressUrl = process.env.NEXT_PUBLIC_EXPRESS_API_URL || "http://localhost:8080";
+export const EXPRESS_API_URL = rawExpressUrl.replace(/\/+$/, "");
+
+export const checkoutCartApi = async (sessionId: string) => {
+  const res = await axios.post(`${EXPRESS_API_URL}/checkout?sessionId=${sessionId}`);
   return res.data;
 };
