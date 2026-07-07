@@ -118,35 +118,47 @@ export default function ShopOrdersPage() {
           No ordered items found for this customer.
         </p>
       ) : (
-        <div className="space-y-3">
-          {orderedItems.map((entry) => (
-            <article
-              key={`${entry.order.id}-${entry.id}`}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-base font-bold text-slate-900">{entry.productName}</h2>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                  Order #{entry.order.id}
-                </span>
-              </div>
-
-              <div className="mt-3 grid gap-2 text-sm text-slate-600 md:grid-cols-4">
-                <p>
-                  Qty: <span className="font-semibold text-slate-900">{entry.quantity}</span>
-                </p>
-                <p>
-                  Unit Price: <span className="font-semibold text-slate-900">KES {Number(entry.unitCost).toLocaleString()}</span>
-                </p>
-                <p>
-                  Line Total: <span className="font-semibold text-slate-900">KES {Number(entry.totalCost).toLocaleString()}</span>
-                </p>
-                <p>
-                  Ordered: <span className="font-semibold text-slate-900">{formatRelativeDate(entry.order.createdAt)}</span>
-                </p>
-              </div>
-            </article>
-          ))}
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full whitespace-nowrap text-left text-sm">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  <th scope="col" className="px-6 py-4 font-semibold">Product</th>
+                  <th scope="col" className="px-6 py-4 font-semibold">Order ID</th>
+                  <th scope="col" className="px-6 py-4 font-semibold text-right">Qty</th>
+                  <th scope="col" className="px-6 py-4 font-semibold text-right">Unit Price (KES)</th>
+                  <th scope="col" className="px-6 py-4 font-semibold text-right">Line Total (KES)</th>
+                  <th scope="col" className="px-6 py-4 font-semibold">Ordered Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {orderedItems.map((entry) => (
+                  <tr key={`${entry.order.id}-${entry.id}`} className="hover:bg-slate-50/50">
+                    <td className="px-6 py-4 font-medium text-slate-900">
+                      {entry.productName}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-800">
+                        #{entry.order.id}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right text-slate-600">
+                      {entry.quantity}
+                    </td>
+                    <td className="px-6 py-4 text-right text-slate-600">
+                      {Number(entry.unitCost).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 text-right font-medium text-slate-900">
+                      {Number(entry.totalCost).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">
+                      {formatRelativeDate(entry.order.createdAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </section>

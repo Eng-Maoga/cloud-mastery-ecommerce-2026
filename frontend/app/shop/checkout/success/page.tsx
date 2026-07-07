@@ -4,20 +4,46 @@ import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useShop } from "../../ShopProvider";
+import { addOrder } from "../../../api";
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const orderTrackingId = searchParams.get("OrderTrackingId");
   const orderMerchantReference = searchParams.get("OrderMerchantReference");
-  const { clearCart } = useShop();
+  const { cartItems, cartTotal, selectedCustomerId, clearCart } = useShop();
   const [cleared, setCleared] = useState(false);
 
   useEffect(() => {
-    if (!cleared) {
-      clearCart();
+    if (!cleared && cartItems.length > 0) {
+      // Push the order to NestJS before clearing the cart
+      addOrder({
+        customerId: selectedCustomerId,
+        orderAmount: String(cartTotal),
+        orderDate: new Date(),
+        paymentMethod: "Pesapal",
+        shippingAddress: "Default",
+        status: "COMPLETED",
+        items: cartItems.map((item) => ({
+          productId: item.id,
+          quantity: item.cartQuantity,
+          unitCost: Number(item.unitCost),
+        })),
+      })
+        .then(() => {
+          clearCart();
+          setCleared(true);
+        })
+        .catch((err) => {
+          console.error("Failed to save order to database:", err);
+          // Still clear the cart to avoid infinite loops on error
+          clearCart();
+          setCleared(true);
+        });
+    } else if (!cleared && cartItems.length === 0) {
+      // If landed with empty cart, just mark cleared
       setCleared(true);
     }
-  }, [clearCart, cleared]);
+  }, [clearCart, cleared, cartItems, cartTotal, selectedCustomerId]);
 
   return (
     <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">

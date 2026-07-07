@@ -124,6 +124,7 @@ export default function ChatWidget() {
             deploymentName,
             tokenBroker: {
               enableTokenBroker: true,
+              enableRecaptcha: false,
             },
             enableWelcomeEvent: true,
           })
