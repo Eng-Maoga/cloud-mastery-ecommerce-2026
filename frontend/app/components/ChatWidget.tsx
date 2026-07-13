@@ -309,7 +309,7 @@ export default function ChatWidget() {
           onClick={() => setIsFolded(!isFolded)}
           style={{
             position: "absolute",
-            left: isFolded ? "16px" : "4px",
+            left: isFolded ? "16px" : "2px",
             top: isFolded ? "16px" : "21px",
             zIndex: 100000,
             background: isFolded
@@ -369,7 +369,7 @@ export default function ChatWidget() {
                 />
               </>
             ) : (
-              <polyline className="" points="0"></polyline>
+              <polyline className="" points="8,11 12,15 16,11"></polyline>
             )}
           </svg>
         </button>
