@@ -309,8 +309,8 @@ export default function ChatWidget() {
           onClick={() => setIsFolded(!isFolded)}
           style={{
             position: "absolute",
-            left: isFolded ? "16px" : "2px",
-            top: isFolded ? "16px" : "21px",
+            left: isFolded ? "16px" : "0px",
+            top: isFolded ? "16px" : "22px",
             zIndex: 100000,
             background: isFolded
               ? "rgba(255, 255, 255, 0.15)"
